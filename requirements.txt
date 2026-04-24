@@ -8,3 +8,4 @@ ta
 joblib
 streamlit-autorefresh
 xgboost
+scikit-learn
