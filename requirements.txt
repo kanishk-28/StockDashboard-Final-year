@@ -1,2 +1,9 @@
-flask
-gunicorn
+streamlit
+pandas
+numpy
+yfinance
+requests
+plotly
+ta
+joblib
+streamlit-autorefresh
