@@ -7,3 +7,4 @@ plotly
 ta
 joblib
 streamlit-autorefresh
+xgboost
