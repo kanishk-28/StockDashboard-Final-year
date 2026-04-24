@@ -67,4 +67,5 @@ StockDashboard-Final-year/
 👨‍💻 Author
 
 Kanishk Sharma
-https://github.com/kanishk-28
+GitHub Link: https://github.com/kanishk-28
+Live Link: https://stock-dashboard-t2xh.onrender.com
