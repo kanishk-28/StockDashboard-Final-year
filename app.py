@@ -81,21 +81,6 @@ def get_yf_symbol(symbol):
         return symbol
 
 
-# ================= CURRENCY =================
-@st.cache_data(ttl=300)
-def get_exchange_rate(from_curr="USD", to_curr="INR"):
-    try:
-        url = f"https://api.exchangerate-api.com/v4/latest/{from_curr}"
-        res = requests.get(url, timeout=5).json()
-
-        if "rates" in res and to_curr in res["rates"]:
-            return res["rates"][to_curr]
-
-        return None
-    except:
-        return None
-
-
 # ================= REAL-TIME PRICE =================
 @st.cache_data(ttl=30)
 def fetch_live_price(symbol):
@@ -158,14 +143,17 @@ st.title("📊 Stock Prediction Dashboard")
 search = st.sidebar.text_input("🔍 Search Stock")
 selected = st.sidebar.selectbox("Select Stock", list(STOCK_MAP.keys()))
 
+# Default ticker
 ticker = STOCK_MAP[selected]
 
+# Search override
 if search:
     ticker = smart_ticker(search)
 
 # ================= FAVORITES =================
 st.sidebar.markdown("### ⭐ Favorites")
 
+# Add to favorites
 if st.sidebar.button("➕ Add Current"):
     if ticker not in st.session_state.favorites:
         st.session_state.favorites.append(ticker)
@@ -173,8 +161,13 @@ if st.sidebar.button("➕ Add Current"):
     else:
         st.sidebar.warning("Already exists")
 
+# Show favorites
 if st.session_state.favorites:
-    fav_choice = st.sidebar.selectbox("Your Favorites", st.session_state.favorites)
+    fav_choice = st.sidebar.selectbox(
+        "Your Favorites",
+        st.session_state.favorites,
+        key="fav_select"
+    )
 
     col1, col2 = st.sidebar.columns(2)
 
@@ -186,6 +179,7 @@ if st.session_state.favorites:
         st.session_state.selected_fav = None
         st.rerun()
 
+# Apply favorite override (highest priority)
 if st.session_state.selected_fav:
     ticker = st.session_state.selected_fav
 
@@ -208,33 +202,17 @@ if close.empty:
     st.error("❌ No valid price data available")
     st.stop()
 
-live_price, _ = fetch_live_price(ticker)
+# ================= LIVE PRICE =================
+live_price, live_error = fetch_live_price(ticker)
 
-raw_price = live_price if live_price else float(close.iloc[-1])
-
-# ================= CURRENCY LOGIC =================
-if ticker in US_TICKERS or "-" in ticker:
-    base_currency = "USD"
+if live_price:
+    price = live_price
+    source = "Real-Time (TwelveData)"
 else:
-    base_currency = "INR"
+    price = float(close.iloc[-1])
+    source = "Yahoo Finance"
 
-target_currency = "INR"
-
-if base_currency != target_currency:
-    rate = get_exchange_rate(base_currency, target_currency)
-
-    if rate:
-        price = raw_price * rate
-        currency_symbol = "₹"
-    else:
-        price = raw_price
-        currency_symbol = "$"
-        st.warning("⚠️ Currency conversion failed")
-else:
-    price = raw_price
-    currency_symbol = "₹"
-
-st.info("Data Source: Real-Time / Yahoo Hybrid")
+st.info(f"Data Source: {source}")
 
 # ================= INDICATORS =================
 try:
@@ -256,13 +234,16 @@ required_cols = ['RSI','EMA20','MACD','MACD_SIGNAL','BB_HIGH','BB_LOW']
 df_ml = df[required_cols].dropna()
 
 if df_ml.empty or len(df_ml) < 5:
+    df['Prediction'] = 0
     signal = "NO SIGNAL ⚪"
 else:
     try:
         scaled = scaler.transform(df_ml)
         preds = model.predict(scaled)
+        df.loc[df_ml.index, 'Prediction'] = preds
         signal = "BUY 🟢" if preds[-1] == 1 else "SELL 🔴"
-    except:
+    except Exception as e:
+        df['Prediction'] = 0
         signal = "NO SIGNAL ⚪"
 
 # ================= SAFE VALUES =================
@@ -281,7 +262,7 @@ target = price * 1.005
 st.subheader("📊 Trading Dashboard")
 
 c1, c2, c3, c4 = st.columns(4)
-c1.metric("Price", f"{currency_symbol}{price:.2f}")
+c1.metric("Price", f"{price:.2f}")
 c2.metric("Signal", signal)
 c3.metric("Model", "Active")
 c4.metric("RSI", rsi_value)
@@ -292,9 +273,9 @@ st.markdown(f"### Trend: {trend}")
 st.subheader("📌 Trade Setup")
 
 t1, t2, t3 = st.columns(3)
-t1.metric("Entry", f"{currency_symbol}{entry:.2f}")
-t2.metric("Stop Loss", f"{currency_symbol}{stop_loss:.2f}")
-t3.metric("Target", f"{currency_symbol}{target:.2f}")
+t1.metric("Entry", f"{entry:.2f}")
+t2.metric("Stop Loss", f"{stop_loss:.2f}")
+t3.metric("Target", f"{target:.2f}")
 
 # ================= CHART =================
 try:
