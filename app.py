@@ -1,4 +1,4 @@
-# ================= IMPORTS =================
+yo# ================= IMPORTS =================
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -29,7 +29,6 @@ if "selected_fav" not in st.session_state:
 
 # ================= STOCK DATABASE =================
 STOCK_MAP = {
-    "Reliance": "RELIANCE",
     "TCS": "TCS",
     "Infosys": "INFY",
     "HDFC Bank": "HDFCBANK",
